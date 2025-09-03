@@ -1,0 +1,178 @@
+# --------------------------------------------
+# Simple Decision Tree Classifier
+# --------------------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# Step 1: Load dataset
+data = pd.read_csv("C:\\Users\\SURIYA\\Downloads\\dataset.csv",na_values=["unknown"])  # Update the path if needed
+print("Shape of dataset:", data.shape)
+print("\nFirst 5 rows:")
+print(data.head())
+
+# ------------------------------------------------
+# Step 2: Basic EDA
+# ------------------------------------------------
+print("\nDataset info:")
+print(data.info())
+
+print("\nSummary statistics for numeric columns:")
+print(data.describe())
+
+# Check missing values
+print("\nMissing values in each column:")
+print(data.isnull().sum())
+
+# Visualize missing values
+sns.heatmap(data.isnull(), cbar=False)
+plt.title("Missing Value Heatmap")
+plt.show()
+
+
+# ------------------------------------------------
+# Step 3: Handle missing values
+# ------------------------------------------------
+# Replace 'unknown' strings with NaN
+data.replace('unknown', np.nan, inplace=True)
+
+# Fill numeric columns with median
+numeric_cols = data.select_dtypes(include=[np.number]).columns
+for col in numeric_cols:
+    data[col].fillna(data[col].median(), inplace=True)
+
+# Fill categorical columns with mode
+categorical_cols = data.select_dtypes(include=['object']).columns
+for col in categorical_cols:
+    data[col].fillna(data[col].mode()[0], inplace=True)
+
+# Check again
+print("\nMissing values after filling:")
+print(data.isnull().sum())
+
+# Visualize missing values
+sns.heatmap(data.isnull(), cbar=False)
+plt.title("Missing Value Heatmap")
+plt.show()
+
+# --------------------------------------------
+# Step 4: Visual EDA
+# --------------------------------------------
+
+# 1. Target variable distribution
+plt.figure(figsize=(6, 4))
+sns.countplot(x='y', data=data, palette='Set2')
+plt.title("Target Variable Distribution (Purchase vs. No Purchase)")
+plt.show()
+
+# 2. Age distribution
+plt.figure(figsize=(6, 4))
+sns.histplot(data['age'], bins=30, kde=True, color='blue')
+plt.title("Age Distribution of Customers")
+plt.show()
+
+# 3. Job type vs Target
+plt.figure(figsize=(10, 5))
+sns.countplot(x='job', hue='y', data=data, palette='Set2')
+plt.xticks(rotation=45)
+plt.title("Job Type vs. Purchase Decision")
+plt.show()
+
+# 4. Marital status vs Target
+plt.figure(figsize=(6, 4))
+sns.countplot(x='marital', hue='y', data=data, palette='Set3')
+plt.title("Marital Status vs. Purchase Decision")
+plt.show()
+
+# 5. Correlation Heatmap for numeric features
+plt.figure(figsize=(10, 8))
+numeric_cols = data.select_dtypes(include=[np.number]).columns
+sns.heatmap(data[numeric_cols].corr(), annot=True, cmap="coolwarm", fmt=".2f")
+plt.title("Correlation Heatmap of Numeric Features")
+plt.show()
+
+# 6. Boxplot for Age vs Purchase
+plt.figure(figsize=(6,4))
+sns.boxplot(x='y', y='age', data=data, palette='Set2')
+plt.title("Age vs Purchase Decision")
+plt.show()
+
+# 7. Pairplot for key numeric features
+sns.pairplot(data[['age', 'pdays', 'previous','emp.var.rate',
+                   'cons.price.idx','cons.conf.idx','euribor3m','nr.employed','duration', 'campaign', 'y']], hue='y', palette='Set2')
+plt.suptitle("Pairplot of Numeric Features", y=1.02)
+plt.show()
+
+
+
+# ------------------------------------------------
+# Step 5: Encode categorical variables
+# ------------------------------------------------
+# Target variable 'y' (yes/no -> 1/0)
+data['y'] = data['y'].map({'yes': 1, 'no': 0})
+
+# One-hot encode other categorical features
+data = pd.get_dummies(data, drop_first=True)
+
+print("\nData after encoding:")
+print(data.head())
+
+# ------------------------------------------------
+# Step 6: Train-test split
+# ------------------------------------------------
+X = data.drop('y', axis=1)
+y = data['y']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print("\nTraining set size:", X_train.shape)
+print("Testing set size:", X_test.shape)
+
+# ------------------------------------------------
+# Step 7: Train Decision Tree Classifier
+# ------------------------------------------------
+dt = DecisionTreeClassifier(max_depth=5, random_state=42)
+dt.fit(X_train, y_train)
+
+# ------------------------------------------------
+# Step 8: Evaluate the model
+# ------------------------------------------------
+y_pred = dt.predict(X_test)
+
+print("\nAccuracy:", accuracy_score(y_test, y_pred))
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+# ------------------------------------------------
+# Step 9: Visualize Decision Tree
+# ------------------------------------------------
+plt.figure(figsize=(18, 10))
+plot_tree(dt, feature_names=X.columns, class_names=['No', 'Yes'], filled=True, rounded=True)
+plt.title("Decision Tree")
+plt.show()
+
+
+# ------------------------------------------------
+# Step 10: Confusion matrix
+# ------------------------------------------------
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=['No', 'Yes'], yticklabels=['No', 'Yes'])
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+
+# ------------------------------------------------
+# Step 11: Feature Importance
+# ------------------------------------------------
+feature_importance = pd.Series(dt.feature_importances_, index=X.columns).sort_values(ascending=False)
+print("\nTop 10 Important Features:")
+print(feature_importance.head(10))
